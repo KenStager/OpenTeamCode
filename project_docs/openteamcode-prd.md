@@ -129,15 +129,24 @@ PRs are where teams collaborate. Code review is where quality happens. Don't bui
 
 ### 4. Graceful Degradation
 
-Never lose work. Never block completely. Network down? Use cached policies. Model unavailable? Save state locally. The tool should remain useful in degraded conditions.
+Never lose work. Never block completely on infrastructure issues. Network down? Use cached policies. Model unavailable? Save state locally. The tool should remain useful in degraded conditions.
 
 **Test**: What happens when [component] is unavailable? Is the developer blocked?
+
+> **Clarification**: "Never block completely" refers to infrastructure failures, not policy enforcement. BLOCK guardrails (for secrets, security) are intentional blocking and require explicit team configuration. See "Reconciling 'Never Block' with BLOCK Guardrails" below.
 
 ### 5. Pull Over Push
 
 Team help should be available when requested, not forced. Suggestions, not mandates. Warnings, not blocks (except for true security violations). Developers should feel empowered, not policed.
 
 **Test**: Can a developer ignore this feature and still be productive?
+
+> **Reconciling "Never Block" with BLOCK Guardrails**:
+> - BLOCK guardrails are **off by default**—teams must explicitly enable them
+> - BLOCK actions require explicit policy configuration in `.ai/policies.yaml`
+> - BLOCK is for true security violations (secrets, credentials) where blocking is the correct behavior
+> - A team that enables BLOCK has **chosen** to accept blocking for security reasons
+> - This differs from infrastructure blocking (network failures) which should never prevent work
 
 ### 6. Learn Continuously
 
@@ -283,10 +292,12 @@ The feasibility assessment (January 2026) identified that a subprocess wrapper a
 
 **Capabilities**:
 - Surface "what imports this symbol/module?" across repo boundaries
-- Suggest "what tests usually fail when this file changes?"
+- Suggest potentially affected test areas based on import relationships (human verification required)
 - Identify related open PRs across repositories
 - Map service-to-library and internal package dependencies
 - Show recent activity in a code area (commits, branches, PRs)
+
+> **Accuracy Note**: Test suggestions are based on static import analysis and historical patterns. They surface ~80% of relevant tests but may miss dynamically loaded dependencies. Always run full test suites for critical changes.
 
 **Implementation Approach**:
 
@@ -342,6 +353,36 @@ otc related <path|service>          # Related PRs, recent changes, owners
 - Impact analysis surfaces ~80% of potential downstream effects (advisory)
 - Developers use `otc impact` before merging cross-cutting changes
 - Users understand results are suggestive, not definitive
+
+### Cross-Repo Awareness (MVP Scope)
+
+> **Note**: Full Context Graph functionality requires central index service (Phase 2+). MVP provides local-only analysis.
+
+**What's Available in MVP**:
+- `otc impact` performs local static analysis (current repo only)
+- `otc context` searches local `.ai/memory/` and session artifacts
+- `otc related` searches local git history and linked PRs
+
+**What Requires Phase 2+**:
+- Automatic cross-repo dependency queries
+- Central index of all team repositories
+- `related_repos` field auto-population
+
+**Manual Cross-Repo Workflow (MVP)**:
+
+For cross-repo changes in MVP, developers follow this documented workflow:
+
+1. Identify related repositories from experience or `.ai/memory/` notes
+2. Run `otc impact` in each repo separately
+3. Manually populate `related_repos` field in session artifact:
+   ```json
+   "context": {
+     "related_repos": ["shared-utils", "auth-service"]
+   }
+   ```
+4. Reference related repos in PR description when using `otc pr summarize`
+
+This workflow is lightweight but ensures cross-repo awareness is captured even before Phase 2 automation.
 
 ---
 
@@ -481,10 +522,52 @@ Every coding session produces a structured artifact:
     "tokens_out": 12840,
     "cost_usd": 0.31,
     "duration_minutes": 47,
-    "turns": 23
+    "turns": 23,
+    "guardrail_events": 2,
+    "standards_adherence": "self-reported"
+  },
+
+  "governance": {
+    "visibility": "team",
+    "data_classification": "internal",
+    "retention_until": "2026-04-13T00:00:00Z",
+    "created_by": "kstager",
+    "last_accessed_by": "kstager",
+    "last_accessed_at": "2026-01-13T14:32:00Z"
   }
 }
 ```
+
+### Session Artifact Governance
+
+Session artifacts contain context about AI-assisted work. This section defines visibility, retention, and access control policies.
+
+**Default Visibility**: *[DECISION REQUIRED - see Q016 in unanswered-questions.md]*
+- **Option A: Team-wide** - All team members can view session artifacts by default
+- **Option B: Opt-in sharing** - Sessions are private until explicitly shared
+
+**Retention Policy**:
+- **Active sessions**: Retained until explicitly archived or associated PR merged
+- **Archived sessions**: 90-day retention, then auto-purged from `.ai/sessions/`
+- **Team memory entries**: Indefinite (curated content, PR-approved)
+
+**Access Control**:
+- **Session owner**: Full read/write/delete permissions
+- **Team members**: Read-only access (if visibility = team)
+- **External users**: No access to session artifacts
+
+**Sensitive Data Handling**:
+- Session artifacts SHOULD NOT contain secrets (guardrails prevent storage)
+- Context compression removes raw conversation (summaries only retained)
+- Developers can redact sensitive content via `otc sessions redact <id>`
+- Working-set patches may contain uncommitted code—use `otc sessions redact` before sharing if needed
+
+**Governance CLI Commands**:
+- `otc sessions archive <id>` - Archive session, start retention countdown
+- `otc sessions redact <id>` - Remove sensitive content from artifact
+- `otc sessions visibility <id> <team|private>` - Change visibility setting
+
+---
 
 **Team Memory (Curated)**
 
@@ -508,6 +591,41 @@ Sessions → Analysis → Proposed Memory → Human Review → Merged to .ai/mem
 
 The `otc learn propose` command analyzes recent sessions and generates candidate memory entries as a PR. Team reviews and merges.
 
+### Onboarding Support (MVP)
+
+New team members benefit from accumulated team knowledge in `.ai/memory/` without needing to search.
+
+**Onboarding-Specific Commands**:
+```bash
+otc memory list                     # Browse all curated team memory entries
+otc memory show <id>                # Display specific memory entry
+otc context --onboarding            # Load onboarding-relevant context summary
+```
+
+**Expected Content Structure** (team maintains):
+```
+.ai/memory/
+  onboarding/
+    getting-started.md              # "Your first day with this codebase"
+    local-dev-setup.md              # "How to run the service locally"
+    key-concepts.md                 # "Core abstractions you'll encounter"
+  patterns/
+    [existing patterns...]
+  gotchas/
+    [existing gotchas...]
+```
+
+**`otc context --onboarding` Output**:
+- Summary of `.ai/standards.md` key conventions
+- List of "must-read" memory entries from `onboarding/` folder
+- Recent significant changes from `.ai/changes.md` (if maintained)
+- Links to related documentation
+
+**Adoption**:
+- New team members run `otc context --onboarding` on first day
+- `.ai/standards.md` serves as primary coding conventions reference
+- Team champions update `onboarding/` content as needed
+
 **CLI Commands**:
 ```bash
 otc handoff                      # Save session artifact, generate summary
@@ -519,8 +637,55 @@ otc learn approve <memory-id>    # Fast-track approve a memory entry
 
 **Success Criteria**:
 - 90%+ of sessions produce valid artifacts automatically
-- Session continuation successfully resumes work 60%+ of the time (see limitations)
+- Session continuation successfully resumes work 70%+ of the time (see limitations)
 - Team memory grows by 2-5 entries per month organically
+
+### Session Continuation Workflow
+
+When a developer runs `otc continue <session-id>`, the following workflow executes:
+
+**Step 1: Validate & Check Drift**
+- Parse `session.json`, verify schema version compatibility
+- Check session status and governance permissions
+- Compare `working-set.patch` against current repository state
+- **No drift**: Proceed to Step 2
+- **Drift detected**: Show summary of changed files, apply strategy
+
+**Step 2: Apply Strategy & Load Context**
+- Apply drift resolution strategy (see `--strategy` flag below)
+- Load `intent`, `plan`, `blockers`, and `next_actions` into LLM context
+- Inject relevant team memory entries from `.ai/memory/`
+- Apply context compaction if total exceeds 80% of context window
+
+**Step 3: Resume**
+- Display: "Continuing session from [owner]. Last action: [summary]."
+- Developer begins work or asks clarifying questions
+
+**Continuation CLI**:
+```bash
+otc continue <id>                      # Default: attempt merge, prompt if conflict
+otc continue <id> --strategy=merge     # 3-way merge session patch with current state
+otc continue <id> --strategy=repo      # Discard session patch, use current repo state
+otc continue <id> --strategy=summary   # Load context only, skip patch entirely (safest)
+```
+
+**Failure Modes & Recovery**:
+
+| Failure | Behavior | Recovery |
+|---------|----------|----------|
+| Schema version mismatch | Error with migration hint | Run `otc doctor` to migrate |
+| Patch application fails | Show conflict summary | Re-run with `--strategy=repo` or `--strategy=summary` |
+| Context exceeds window | Auto-compact with warning | Context truncated, older turns lost |
+| Session corrupted | Error identifying corruption | Contact session owner; `otc salvage` available in Phase 2+ |
+| Permission denied | Error with ownership info | Contact session owner or admin |
+
+**Productive Continuation Metrics** (for Phase 0 validation):
+
+| Metric | How Measured | Pass Threshold |
+|--------|--------------|----------------|
+| Time-to-first-change | Timestamp from `otc continue` completion to first file edit >10 chars | Median ≤10 minutes |
+| Continuation quality | Post-session survey: "I understood the context without re-reading files" (1-5 scale) | ≥70% report 3+ |
+| Task progress | Developer reaches next milestone without asking "what was I doing?" | Subjective, logged |
 
 **Limitations (Session Continuation)**:
 
@@ -545,6 +710,12 @@ otc learn approve <memory-id>    # Fast-track approve a memory entry
 **Problem Solved**: Teams have no ambient awareness of parallel work. Developers unknowingly create conflicts, duplicate effort, or step on each other's work.
 
 **Design Philosophy**: Suggestive, not policing. Surface information, don't block action. Opt-in visibility for active work.
+
+> **Privacy & Monitoring Concern**: Activity tracking (even opt-in) may raise privacy or monitoring concerns for some developers. Adoption targets may be optimistic if developers perceive presence/collision as surveillance. Consider:
+> - Clear communication that claims are opt-in and ephemeral
+> - No permanent storage of activity patterns
+> - Team discussion before enabling any tracking features
+> - Option to run in "PR-only mode" (no active session tracking)
 
 **Signal Sources**:
 
@@ -726,13 +897,42 @@ otc pr review <id>              # Post structured review comments
 otc pr testplan <id>            # Generate risk-based test plan
 otc pr followup <id>            # Re-review after human feedback
 otc pr link <id>                # Attach session to PR
-otc pr status <id>              # Show AI activity on this PR
 ```
 
+### PR Operation Recovery [Phase 2+]
+
+When Azure DevOps is unreachable, PR operations queue locally and sync when connectivity returns.
+
+**Recovery Commands** (Phase 2+):
+```bash
+otc pr status                   # Show all pending/queued/failed operations
+otc pr queue                    # List all queued operations awaiting sync
+otc pr retry <operation-id>     # Retry a failed operation
+otc pr retry --all              # Retry all failed operations
+```
+
+**MVP Behavior**: Failed operations display error; developer retries manually with same command.
+
+**Failure Handling** (Phase 2+):
+- Failed operations surface in `otc status` output with error summary
+- After 3 automatic retry failures: prompt developer to check ADO connectivity
+- Operations expire after 24 hours in queue (configurable)
+
+**Queue Behavior** (Phase 2+):
+- Operations queued in order received (FIFO)
+- Each operation includes: type, PR ID, timestamp, retry count
+- Queue persists across session restarts (stored in `.ai/.queue/`)
+
 **Success Criteria**:
-- AI reviews catch at least 1 issue per PR that humans confirm as valid
+- AI reviews catch at least 1 issue per PR that humans confirm as valid (recall)
+- **<20% of flagged issues dismissed as noise** (precision)
 - PR descriptions generated by AI require < 20% human editing
 - Developers prefer `otc pr review` over waiting for human review for initial feedback
+- Developer satisfaction with review quality: >3.5/5
+
+**Rollback Triggers** (quality degradation thresholds):
+- If >40% of issues are dismissed as noise, roll back model/prompts
+- If developer satisfaction drops below 2.5/5, investigate and adjust
 
 ---
 
@@ -873,6 +1073,37 @@ When a GATE guardrail fires:
 4. Approver can approve via `otc guardrail approve <request-id>` or ADO
 5. Session resumes with approval logged in artifact
 
+### MVP Override Workflow
+
+> **Note**: Mode switching (`otc mode`) is deferred to Phase 3. This section documents the MVP-available override paths.
+
+**Override by Guardrail Level**:
+
+| Level | Override Path | Notes |
+|-------|--------------|-------|
+| **INFO** | Automatic - no action needed | Information only, logged |
+| **WARN** | Acknowledge and proceed | Logged as "acknowledged warning" |
+| **GATE** | Request approval (`otc guardrail request`) | Approval workflow above |
+| **BLOCK** | Edit `.ai/policies.yaml` | No runtime bypass |
+
+**Emergency Access (BLOCK False Positive)**:
+
+If a BLOCK guardrail falsely triggers and prevents legitimate work:
+
+1. Developer runs `otc guardrail explain <id>` to understand trigger reason
+2. Developer identifies the specific pattern causing the false positive
+3. Developer edits `.ai/policies.yaml` to adjust pattern scope:
+   - Narrow the file path pattern
+   - Add explicit exclusion for the legitimate case
+   - Reduce severity from `block` to `gate` temporarily
+4. Developer runs `otc sync` to reload policies
+5. Action logged as "policy modification" in audit trail with diff
+
+**Policy Modification Audit**:
+- All changes to `.ai/policies.yaml` are tracked in git
+- Session artifact records policy version at session start
+- `otc audit export` includes policy modification events
+
 **Audit Trail**:
 
 Every guardrail event is logged:
@@ -908,6 +1139,51 @@ otc guardrail request <id>       # Request exception for GATE guardrail
 otc guardrail approve <req-id>   # Approve an exception request
 otc guardrail history            # Show guardrail events in current session
 ```
+
+### Audit Trail Access
+
+Guardrail events and AI-assisted decisions are logged for compliance and governance visibility.
+
+**Audit Trail Commands**:
+```bash
+# View guardrail events
+otc guardrail history                          # Current session events
+otc guardrail history --session <id>           # Specific session events
+otc guardrail history --session all            # All sessions in repo
+otc guardrail history --level gate|block       # Filter by severity
+otc guardrail history --since 7d               # Time filter
+otc guardrail history --format json|table      # Output format
+
+# Export for compliance
+otc audit export                               # Export all audit data
+otc audit export --since 30d                   # Time filter
+otc audit export --format csv|json             # Output format
+otc audit export --output ./compliance.csv     # Write to file
+```
+
+**Audit Export Contents**:
+- Guardrail trigger events (with resolution status)
+- Approval workflow history (who approved what, when)
+- PR actions (reviews, summaries, comments posted)
+- Session lifecycle events (created, continued, archived)
+- Policy modifications (who changed `.ai/policies.yaml`)
+
+### Governance Visibility (for Engineering Leads)
+
+**Per-Session Visibility** (MVP):
+- `otc guardrail history` shows all policy events for a session
+- Session artifact includes `metrics.guardrail_events` count
+- PR comments include guardrail summary for that PR's work
+
+**Repo-Level Visibility** (MVP):
+- `otc audit export` generates compliance report from local artifacts
+- Report can be generated for any date range
+- JSON format for integration with external dashboards
+
+**Aggregate Visibility** (Phase 2+ - requires central service):
+- Dashboard showing team-wide guardrail trigger rates
+- Alert thresholds for anomalous patterns (e.g., sudden spike in BLOCK events)
+- Cross-repo compliance rollup
 
 **Success Criteria**:
 - Zero secrets leak through to model context (BLOCK effectiveness)
@@ -951,7 +1227,7 @@ repo-root/
 │   ├── changes.md               # Changelog template
 │   ├── adr.md                   # ADR template
 │   ├── policies.yaml            # Guardrail configuration
-│   ├── routing.yaml             # Model routing overrides
+│   ├── routing.yaml             # Model routing overrides (Phase 3+)
 │   │
 │   ├── memory/                  # Curated team knowledge
 │   │   ├── patterns/
@@ -984,7 +1260,7 @@ repo-root/
 | `changes.md` | Template for changelog generation | Release workflows |
 | `adr.md` | Template for architecture decisions | `otc adr` commands |
 | `policies.yaml` | Repo-specific guardrails | Merged with org policy |
-| `routing.yaml` | Repo-specific model routing | Merged with org routing |
+| `routing.yaml` | Repo-specific model routing (Phase 3+) | Merged with org routing |
 | `memory/**` | Team knowledge base | Loaded on relevant queries |
 | `sessions/**` | Session artifacts | On `otc continue` |
 
@@ -1000,6 +1276,8 @@ Creates `.ai/` folder with templates and sensible defaults.
 
 ## CLI Command Reference
 
+> **Phase Notation**: Commands without markers are MVP (Phase 1). Commands marked `[P2]` are Phase 2+.
+
 ### Core Loop (Daily Use)
 
 | Command | Description |
@@ -1008,18 +1286,20 @@ Creates `.ai/` folder with templates and sensible defaults.
 | `otc run "<task>"` | One-shot task with team context |
 | `otc ask "<question>"` | Quick question against repo + team memory |
 | `otc handoff` | Save current session as portable artifact |
-| `otc continue <session>` | Resume a previous session |
+| `otc continue <session>` | Resume a previous session (see `--strategy` flag) |
+| `otc status` | Show local state: active session, pending ops, policy freshness |
 
-### Team Awareness
+### Team Awareness [P2]
+
+> **Note**: Presence & Collision features require Phase 2 infrastructure.
 
 | Command | Description |
 |---------|-------------|
-| `otc status [area]` | Who's working where, open PRs, recent activity |
+| `otc watch <path>` | Alert on activity in area |
 | `otc context [path]` | What does the team know about this code? |
-| `otc impact [branch]` | What breaks if I merge this? |
+| `otc impact [branch]` | What might be affected? (advisory, ~80% accuracy) |
 | `otc claim [area]` | Signal "I'm working here" (opt-in) |
 | `otc unclaim` | Clear active claim |
-| `otc watch <path>` | Alert on activity in area |
 
 ### PR Workflows
 
@@ -1030,17 +1310,34 @@ Creates `.ai/` folder with templates and sensible defaults.
 | `otc pr testplan <id>` | Generate risk-based test plan |
 | `otc pr followup <id>` | Re-review after human feedback |
 | `otc pr link <id>` | Attach current session to PR |
-| `otc pr status <id>` | Show AI activity on this PR |
+| `otc pr status` | Show all pending/queued/failed PR operations [P2] |
+| `otc pr queue` | List queued operations awaiting sync [P2] |
+| `otc pr retry <op-id>` | Retry a failed operation [P2] |
 
-### Memory & Learning
+### Sessions & Discovery
 
 | Command | Description |
 |---------|-------------|
-| `otc sessions list` | Show recent sessions |
-| `otc sessions search "<query>"` | Search session artifacts |
+| `otc sessions list` | Show recent sessions (supports `--pr`, `--owner`, `--status` filters) |
+| `otc sessions search "<query>"` | Search session artifacts by content |
+| `otc sessions show <id>` | Display session details (intent, plan, blockers) |
+| `otc sessions preview <id>` | Show human-readable summary without loading [P2] |
+| `otc sessions assign <id> <user>` | Transfer ownership (notifies recipient) [P2] |
+| `otc sessions archive <id>` | Archive session, start retention countdown [P2] |
+| `otc sessions redact <id>` | Remove sensitive content from artifact [P2] |
+| `otc sessions visibility <id> <level>` | Set visibility: `team` or `private` [P2] |
+
+### Memory & Learning [P2]
+
+> **Note**: Team memory distillation requires Phase 2+ infrastructure.
+
+| Command | Description |
+|---------|-------------|
+| `otc memory search "<query>"` | Search team memory (MVP: searches `.ai/memory/` files) |
+| `otc memory list` | Browse curated team memory entries |
+| `otc memory show <id>` | Display specific memory entry |
 | `otc learn propose` | Generate team memory candidates from recent sessions |
 | `otc learn approve <id>` | Approve a memory entry |
-| `otc memory search "<query>"` | Search team memory |
 
 ### Governance & Policy
 
@@ -1049,10 +1346,14 @@ Creates `.ai/` folder with templates and sensible defaults.
 | `otc sync` | Pull latest policies and prompt packs |
 | `otc guardrail list` | Show active guardrails |
 | `otc guardrail explain <id>` | Why did this fire? |
-| `otc guardrail request <id>` | Request exception |
-| `otc guardrail approve <req>` | Approve exception |
+| `otc guardrail request <id>` | Request exception for GATE guardrail [P2] |
+| `otc guardrail approve <req>` | Approve exception [P2] |
+| `otc guardrail history` | Show guardrail events (supports `--session`, `--level`, `--since`) [P2] |
+| `otc audit export` | Export audit trail for compliance [P2] |
 
-### Model & Budget
+### Model & Budget (Phase 3+)
+
+> **Note**: Model Routing is deferred. These commands are planned for Phase 3+ pending validation of actual team pain points.
 
 | Command | Description |
 |---------|-------------|
@@ -1067,11 +1368,60 @@ Creates `.ai/` folder with templates and sensible defaults.
 | Command | Description |
 |---------|-------------|
 | `otc init` | Bootstrap `.ai/` folder in repo |
-| `otc doctor [session]` | Health check and repair |
-| `otc salvage <session>` | Extract from corrupted session |
-| `otc config` | View/edit configuration |
+| `otc doctor` | Health check sessions and config (supports `--config` flag) |
+| `otc salvage <session>` | Extract usable content from corrupted session [P2] |
+| `otc config` | View current configuration |
+| `otc config auth` | Manage stored credentials (PAT, API keys) |
 | `otc version` | Show version info |
 | `otc help [command]` | Help and documentation |
+
+#### `otc doctor` Specification
+
+**Health Checks Performed**:
+- **Session health**: Schema validity, patch applicability, context integrity
+- **Config health** (`--config`): `.ai/config.yaml` schema validity, `.ai/policies.yaml` against central template (if configured)
+- **Drift detection**: Compares local `.ai/` files against central template versions
+
+**Repairs Performed**:
+- Schema migration for older session formats
+- Stale reference cleanup (dangling PR links, missing files)
+- Config schema validation with fix suggestions
+
+**Output**: Health report with warnings/errors, suggested commands to fix issues
+
+#### `otc salvage` Specification
+
+Extracts usable content from corrupted sessions:
+
+**Salvage Scenarios**:
+- `session.json` valid but `context.jsonl` corrupted → Extract intent, plan, blockers
+- `context.jsonl` valid but `session.json` corrupted → Rebuild session from context
+- Partial corruption → Extract all readable fields into new session
+
+**Output**: New session artifact with recoverable content, clearly marked as salvaged
+
+### Configuration Drift Detection
+
+Multi-repo teams need to detect when `.ai/` configuration drifts from central templates.
+
+**Drift Detection Commands**:
+```bash
+otc doctor --config              # Check current repo config
+otc sync --check                 # Check if local is behind central (no update)
+otc sync --diff                  # Show diff between local and central
+```
+
+**What's Checked**:
+- `.ai/config.yaml` schema validity and version
+- `.ai/policies.yaml` against team template (if `central_policy_url` configured)
+- `.ai/standards.md` last modified date vs. team template
+
+**Drift Alerts**:
+- Warning if local config is older than central by >7 days
+- Error if schema version is incompatible
+- Suggestion to run `otc sync` if drift detected
+
+**Phase 2+**: Central policy service with automatic version tracking and sync-on-session-start
 
 ---
 
@@ -1161,6 +1511,41 @@ See the Integration Architecture diagram in the Solution Architecture section fo
 
 **Principle**: Never lose work. Never block completely.
 
+### Long-Running Operation UX
+
+Many `otc` commands involve LLM API calls or network operations that take multiple seconds. This section defines the UX for these operations.
+
+**Progress Indication**:
+- Spinner with status message for operations >2 seconds
+- ETA shown for operations with predictable duration (e.g., "Analyzing... ~15 seconds remaining")
+- Streaming output for content-generating commands (`otc pr review`, `otc pr summarize`)
+
+**Commands That May Take >5 Seconds**:
+| Command | Expected Duration | Progress Strategy |
+|---------|------------------|-------------------|
+| `otc continue <id>` | 5-30 seconds | Spinner with steps ("Loading context... Injecting memory...") |
+| `otc pr review <id>` | 10-60 seconds | Streaming output as review generates |
+| `otc pr summarize <id>` | 5-30 seconds | Streaming output as summary generates |
+| `otc impact <branch>` | 2-10 seconds | Spinner with file count progress |
+| `otc context --deep` | 5-20 seconds | Spinner with repository count |
+| `otc learn propose` | 10-60 seconds | Spinner with session analysis progress |
+
+**Timeout Handling**:
+- Default timeout: 60 seconds for LLM API calls, 30 seconds for Azure DevOps API
+- `--timeout <seconds>` flag available on long-running commands
+- Timeout triggers graceful abort with partial results if available
+- Timed-out operations logged for debugging
+
+**Cancellation**:
+- Ctrl+C triggers graceful shutdown at next safe checkpoint
+- In-progress LLM calls abort cleanly (no corrupted state)
+- Queued operations remain queued (not lost on cancel)
+- Partial results saved where possible (e.g., partial PR review)
+
+**Verbose Mode**:
+- `--verbose` flag shows detailed progress for debugging slow operations
+- Includes: API call timing, token counts, retry attempts
+
 ---
 
 ## Phase 0: Validation Requirements
@@ -1185,14 +1570,23 @@ Building features before validating these risks significant wasted effort.
 **Hypothesis**: Developers benefit from session artifacts and can productively continue another developer's session.
 
 **Test Protocol**:
-1. Conduct 10 real handoff scenarios between team members
+1. Conduct **25** real handoff scenarios between team members (minimum for statistical significance)
 2. Export OpenCode compaction summaries manually
 3. Second developer continues from artifact
 4. Measure: Success rate, time to productivity, satisfaction score
+5. **Baseline comparison**: Also test 10 scenarios with simple markdown handoff summary (no session artifact)
 
-**Success Criteria**: >60% of handoffs result in productive continuation without extensive re-explanation
+**Success Criteria**:
+- >**70%** of handoffs result in productive continuation without extensive re-explanation
+- Session artifacts must be **>20% better** than simple markdown handoff summary
+- "Productive continuation" measured as:
+  - **Primary**: Median time-to-first-change ≤10 minutes (from `otc continue` to first file edit >10 chars)
+  - **Secondary**: ≥70% of developers report 3+ on 5-point continuation quality survey
+  - See "Productive Continuation Metrics" in Session Continuation Workflow section for details
 
-**If Validation Fails**: Pivot to artifact generation for audit trail and documentation, not continuation. Session artifacts become historical records rather than working documents.
+**If Validation Fails**: Pivot to artifact generation for audit trail and documentation, not continuation. Session artifacts become historical records rather than working documents. If continuation is <20% better than simple summary, consider summary-only approach.
+
+> **Critical**: Session continuation is the core product hypothesis. If this validation fails, the entire product thesis requires fundamental reassessment.
 
 #### Validation 2: Standards Injection Effectiveness
 
@@ -1207,6 +1601,29 @@ Building features before validating these risks significant wasted effort.
 **Success Criteria**: >80% compliance with injected standards across test scenarios
 
 **If Validation Fails**: Investigate stronger enforcement (post-generation validation) or accept standards as suggestions rather than expectations.
+
+##### Standards Compliance Monitoring (Post-Validation)
+
+After Phase 0 validation, ongoing monitoring ensures standards continue to be followed:
+
+**Measurement Signals** (MVP):
+- `otc pr review` output includes "Standards Alignment" section noting which standards were/weren't followed
+- Session artifact captures `metrics.standards_adherence` as self-reported assessment
+- Manual spot-checks during code review
+
+**Developer Feedback Loop**:
+- When `otc pr review` identifies non-compliance, reviewer can flag patterns for `.ai/standards.md` update
+- `otc learn propose` analyzes patterns in merged PRs to suggest standards improvements
+
+**Automated Measurement** (Phase 3+):
+- Static analysis comparing generated code to pattern library
+- Compliance score per session, aggregated to team dashboard
+- Alerts when compliance drops below threshold (model update detected)
+
+**Model Version Tracking**:
+- Session artifacts record which model version generated code
+- Compliance can be tracked per model version to detect degradation
+- Routing fallbacks can be triggered if a model version shows poor compliance
 
 #### Validation 3: Guardrails False Positive Rate
 
@@ -1224,25 +1641,45 @@ Building features before validating these risks significant wasted effort.
 
 #### Validation 4: Team Maintenance Discipline
 
-**Hypothesis**: Teams will maintain `.ai/` conventions over time rather than abandoning them.
+**Hypothesis**: Teams will maintain `.ai/` conventions over time rather than abandoning them, with acceptable effort.
 
 **Test Protocol**:
 1. Run 4-week pilot with real team using `.ai/` folder
 2. Monitor update frequency (commits to `.ai/` files)
 3. Track standards staleness (do they reflect current practices?)
 4. Measure memory growth (is `.ai/memory/` accumulating useful patterns?)
+5. **Measure maintenance overhead**: Track actual time spent on `.ai/` folder maintenance
 
-**Success Criteria**: Standards updated at least weekly; team memory grows organically (2-5 entries per month); no complete abandonment during pilot
+**Success Criteria**:
+- Standards updated at least weekly
+- Team memory grows organically (2-5 entries per month)
+- No complete abandonment during pilot
+- **<30 minutes/week average maintenance overhead per developer**
 
 **If Validation Fails**: Increase automation (`otc learn propose` generates candidates). Simplify formats and reduce required files. Consider whether convention-based approach is viable for the team.
 
 ### Decision Gate
 
+> **Strict Gate**: ALL 4 validations must pass to proceed. This is stricter than typical validation because session continuation is the core product thesis—shipping without validating it risks building the wrong product.
+
 | Validation | Passes | Action |
 |------------|--------|--------|
 | All 4 pass | ✅ | Proceed to Phase 1 (MVP) implementation |
-| 3 of 4 pass | ⚠️ | Proceed with adjusted scope for failed area |
-| 2 or fewer pass | ❌ | Revisit product thesis; significant pivot required |
+| 3 of 4 pass | ❌ | Do NOT proceed. Investigate failed validation, consider pivots |
+| 2 or fewer pass | ❌ | Revisit product thesis; significant pivot or project cancellation |
+
+**Individual Failure Responses**:
+
+| If This Fails | Response |
+|---------------|----------|
+| Session continuation | **STOP**. Core thesis unproven. Pivot to audit-trail-only or reconsider project |
+| Standards injection | Proceed with caution; investigate enforcement mechanisms |
+| Guardrails | Reduce guardrail scope to BLOCK-only; defer WARN/GATE |
+| Team maintenance | Increase automation; simplify required files |
+
+**Additional Prerequisites**:
+- **Data governance policy** must be defined before storing any session artifacts (see Q016)
+- **Precision/recall measurement plan** must exist for guardrails and PR reviews (see Q017)
 
 ### Phase 0 Deliverables
 
@@ -1307,7 +1744,8 @@ Building features before validating these risks significant wasted effort.
 |--------|--------|-------------|
 | Adoption | 80% of target team using weekly | Usage telemetry |
 | Session completion | 70% of sessions produce valid artifacts | Artifact validation |
-| PR review quality | AI catches 1+ valid issue per PR | Human confirmation |
+| PR review quality (recall) | AI catches 1+ valid issue per PR | Human confirmation |
+| PR review quality (precision) | <20% of issues dismissed as noise | Dismissal tracking |
 | Time to value | < 5 seconds from terminal to coding | Timing measurement |
 | Developer NPS | > 20 | Survey at week 4, 8 |
 
@@ -1424,8 +1862,8 @@ Building features before validating these risks significant wasted effort.
 
 **Mitigation**:
 - **Phase 0 validation required** before implementation
-- Test with 10 real handoff scenarios
-- Success criteria: >60% productive continuations
+- Test with 25 real handoff scenarios (minimum for statistical significance)
+- Success criteria: >70% productive continuations
 - **Pivot strategy if validation fails**: Session artifacts become audit trail/documentation rather than continuation mechanism
 
 **Why This Is Risk #1**: Session continuation is the core differentiator. If it doesn't provide value, OpenTeamCode becomes "team governance layer" rather than "team-native AI coding"—a smaller, more competitive market.
@@ -1458,7 +1896,7 @@ Building features before validating these risks significant wasted effort.
 - Auto-generate artifacts (no manual effort for basic handoff)
 - Drift detection makes stale sessions obvious
 - `otc doctor` provides clear recovery path
-- Don't require perfection—60%+ useful handoff is still valuable
+- Don't require perfection—70%+ useful handoff meets the validation bar
 
 ### Risk 5: Context Graph Is Wrong
 
@@ -1538,10 +1976,17 @@ Several technical questions have been answered through research (see `project_do
 | **Claude Code** | Excellent CLI UX, powerful reasoning | No team state, no governance, no PR integration |
 | **Cursor** | Great IDE integration, popular | IDE-centric (not terminal-first), no team features |
 | **GitHub Copilot** | Broad adoption, IDE integration | Limited reasoning, no session continuity, no team governance |
+| **Amazon CodeWhisperer** | AWS integration, security scanning | Individual-focused, no session continuity |
+| **Tabnine** | Enterprise privacy focus | Primarily autocomplete, limited reasoning |
+| **Sourcegraph Cody** | Code intelligence, search | Strong code understanding but no team state primitives |
 | **Codegen agents** (various) | Autonomous generation | Often lack tight feedback loop, no team orientation |
 | **Internal chatbots** | Org-specific knowledge | Usually not coding-focused, poor developer UX |
 
 **OpenTeamCode's differentiation**: Team-native primitives (shared state, governance, learning) with Claude Code-like terminal-first UX.
+
+**Platform Vendor Risk**: Microsoft (GitHub), Amazon (AWS), and Google (Cloud) have the resources and distribution to add team features to their existing AI coding tools. If major platform vendors add session continuity or team governance features, OpenTeamCode's differentiation narrows significantly.
+
+**Mitigation**: Focus on deep Azure DevOps integration and Python-specific team workflows—areas where platform vendors may not invest heavily. Consider future expansion to GitHub/GitLab if Azure DevOps niche proves too small.
 
 ---
 
@@ -1699,6 +2144,7 @@ otc budget history             # Cost breakdown over time
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.3.0-draft | 2026-01-14 | Ken Stager, Claude | External audit response: Strict decision gate (ALL 4 validations), 70% handoff bar, baseline comparison, precision metrics, competitive landscape expansion, privacy concerns, governance claim qualifications |
 | 0.2.0-draft | 2026-01-14 | Ken Stager, Claude | Post-feasibility revision: Plugin + CLI hybrid architecture, Phase 0 validation, Model Routing deferred, guardrails scoped to syntactic |
 | 0.1.0-draft | 2026-01-13 | Ken Stager, Claude | Initial draft |
 

@@ -1,0 +1,7 @@
+{
+  // OpenCode configuration for OpenTeamCode project
+  // See: https://opencode.ai/docs/config
+
+  // Load team standards into system prompts
+  "instructions": [".ai/standards.md"]
+}

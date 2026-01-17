@@ -6,7 +6,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **OpenTeamCode** is a team-native CLI extension for AI-assisted coding that transforms ephemeral individual sessions into durable, shareable, governed team state. Built on OpenCode as its foundation using a **Plugin + CLI hybrid** architecture, it adds collaboration primitives for enterprise Python teams on Azure DevOps.
 
-**Current Status**: Research and planning phase. PRD revised post-feasibility assessment. **Phase 0 validation required before implementation.**
+**Current Status**: **Phase 0 Validation In Progress**. Infrastructure created, ready for experiments.
+
+## Phase 0 Validation (Current Work)
+
+Phase 0 validates four critical hypotheses before full implementation. All validation infrastructure is now in place.
+
+| Experiment | Target | Status | Files |
+|------------|--------|--------|-------|
+| Q001: Session Continuation | >70% productive | Ready | `validation/q001-session-handoff/` |
+| Q002: Standards Injection | >80% compliance | Ready | `validation/q002-standards-injection/` |
+| Q003: Guardrails | <5% false positives | Ready | `validation/q003-guardrails/` |
+| Q004: Team Discipline | Weekly maintenance | Ready | `validation/q004-team-discipline/` |
+
+**Tracking**: `project_docs/phase0-validation.md`
+
+### Running Experiments
+
+```bash
+# Q003: Test guardrails prototype
+cd opencode && bun install  # First time only
+bun run validation/q003-guardrails/prototype.ts validation/q003-guardrails/corpus/true-positives/
+bun run validation/q003-guardrails/prototype.ts validation/q003-guardrails/corpus/true-negatives/
+```
 
 ## Project Documentation
 
@@ -19,6 +41,7 @@ All planning documents live in `project_docs/`:
 | `feasibility-assessment.md` | Technical feasibility analysis with OpenCode evaluation |
 | `decisions.md` | Architecture Decision Records (ADRs) tracking key decisions |
 | `unanswered-questions.md` | Open questions requiring validation or team input |
+| `phase0-validation.md` | **NEW** Phase 0 experiment tracking and results |
 
 **Important**: Update this CLAUDE.md whenever creating new documentation, making architectural decisions, or adding code to the project.
 
@@ -116,21 +139,49 @@ opencode/packages/opencode/src/
 
 See `project_docs/feasibility-assessment.md` for full rationale and architecture diagram.
 
-## Planned CLI Commands
+## Planned CLI Commands (MVP)
 
-### Core Loop
-- `otc` - Launch TUI with team defaults
-- `otc run "<task>"` - One-shot task with team context
-- `otc handoff` - Save session artifact
-- `otc continue <session>` - Resume previous session
+> **Note**: This is the MVP command surface. See PRD Section 6.2 for the complete CLI reference including Phase 2+ commands.
+
+### Core Workflow
+| Command | Description |
+|---------|-------------|
+| `otc` | Launch TUI with team defaults |
+| `otc run "<task>"` | One-shot task with team context |
+| `otc handoff` | Save session artifact for handoff |
+| `otc continue <id>` | Resume session (supports `--strategy=merge\|repo\|summary`) |
+| `otc init` | Initialize `.ai/` folder |
+| `otc status` | Show local state: active session, pending ops, policy freshness |
+
+### Session Management
+| Command | Description |
+|---------|-------------|
+| `otc sessions list` | List sessions (supports `--pr`, `--owner`, `--status` filters) |
+| `otc sessions show <id>` | Display session details (intent, plan, blockers) |
+| `otc sessions search "<query>"` | Search session artifacts |
 
 ### PR Workflows (Azure DevOps)
-- `otc pr summarize <id>` - Generate PR description
-- `otc pr review <id>` - Post structured review comments
+| Command | Description |
+|---------|-------------|
+| `otc pr summarize <id>` | Generate/update PR description |
+| `otc pr review <id>` | Post structured review comments |
+| `otc pr testplan <id>` | Generate risk-based test plan |
+| `otc pr followup <id>` | Re-review after human feedback |
+| `otc pr link <id>` | Attach current session to PR |
 
 ### Guardrails
-- `otc sync` - Pull latest policies
-- `otc guardrail list` - Show active guardrails
+| Command | Description |
+|---------|-------------|
+| `otc sync` | Pull latest policies |
+| `otc guardrail list` | Show active guardrails |
+| `otc guardrail explain <id>` | Why did this guardrail fire? |
+
+### Diagnostics
+| Command | Description |
+|---------|-------------|
+| `otc doctor` | Health check (supports `--config` flag) |
+
+**Phase 2+ commands** (not in MVP): `otc watch`, `otc sessions assign/archive/redact/visibility`, `otc pr status/queue/retry`, `otc guardrail request/approve/history`, `otc audit export`, `otc memory list/show`, `otc salvage`. See PRD for details.
 
 ## Repository Convention: `.ai/` Folder
 

@@ -1,0 +1,10 @@
+{
+  "name": "my-app",
+  "version": "1.0.0",
+  "api_key": "abcdefghijklmnopqrstuvwxyz1234567890",
+  "apiKey": "another_api_key_that_should_be_detected_1234",
+  "database": {
+    "host": "localhost",
+    "password": "db_password_123456"
+  }
+}

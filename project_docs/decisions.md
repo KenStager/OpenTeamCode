@@ -74,6 +74,26 @@ Key finding: Many features assumed to require building are actually **configurat
 - Abstract interfaces to allow foundation swaps if needed
 - Consider contributing team features back to OpenCode
 
+**API Churn Contingency Plan** (added post-audit):
+
+OpenCode has had 8 breaking changes in 4 months with no semver policy. Concrete mitigations:
+
+1. **Pin to specific commit/tag** (not floating versions like `^1.1.0`)
+2. **Automated regression test suite** against OpenCode:
+   - Run on every OpenCode release
+   - Test all plugin hooks used by OpenTeamCode
+   - Automated alerts on test failures
+3. **Compatibility layer abstraction**:
+   - Isolate plugin API from OpenTeamCode core
+   - Single adapter module handles all OpenCode-specific calls
+   - Allows swapping adapters if API changes
+4. **Fork threshold criteria**:
+   - Consider fork if >3 breaking changes in 30 days
+   - Consider fork if >1 change breaks core OTC functionality
+   - Decision factors: cost of maintaining fork vs. adapting, community trajectory, ability to contribute upstream
+
+See Q018 in unanswered-questions.md for full contingency planning.
+
 ---
 
 ## D002: Plugin + CLI Hybrid Architecture
@@ -146,7 +166,7 @@ Building the full system before validating these risks significant wasted effort
 **Require Phase 0 validation experiments before committing to full implementation.**
 
 Phase 0 activities:
-1. Manual session handoff experiments (10 scenarios)
+1. Manual session handoff experiments (25 scenarios minimum)
 2. Standards injection tests (with/without `.ai/standards.md`)
 3. Secrets detection prototype (measure false positives)
 4. Team discipline pilot (4-week `.ai/` folder trial)
@@ -171,7 +191,7 @@ Phase 0 activities:
 - Requires discipline to complete validation before building
 
 **Decision Gate**: Proceed to implementation only if:
-- >60% of session handoffs successfully continued
+- >70% of session handoffs result in productive continuation
 - >80% compliance with injected standards
 - <5% false positive rate on secrets detection
 
@@ -327,4 +347,5 @@ The following decisions are deferred pending Phase 0 validation or team input:
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.2.0 | 2026-01-14 | Claude (Opus 4.5) | Added API churn contingency plan and fork criteria to D001 (post-audit) |
 | 0.1.0 | 2026-01-14 | Claude (feasibility analysis) | Initial decisions from feasibility assessment |

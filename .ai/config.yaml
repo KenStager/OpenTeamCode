@@ -1,0 +1,28 @@
+# OpenTeamCode Configuration
+# This file configures team-specific settings for AI-assisted coding
+
+version: "0.1"
+team: "openteamcode-pilot"
+
+# Standards injection
+standards:
+  enabled: true
+  file: "standards.md"
+
+# Guardrails configuration
+guardrails:
+  enabled: true
+  policies_file: "policies.yaml"
+
+# Session management
+sessions:
+  auto_save: true
+  artifact_dir: "sessions/"
+  compaction_threshold: 50000  # tokens
+
+# Memory settings
+memory:
+  enabled: true
+  patterns_dir: "memory/patterns/"
+  gotchas_dir: "memory/gotchas/"
+  decisions_dir: "memory/decisions/"

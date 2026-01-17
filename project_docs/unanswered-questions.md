@@ -1,8 +1,8 @@
 # OpenTeamCode: Unanswered Questions
 
-**Version**: 0.2.0
+**Version**: 0.3.0
 **Last Updated**: January 14, 2026
-**Status**: Research & Planning Phase (7 technical questions answered)
+**Status**: Research & Planning Phase (7 technical questions answered, 5 audit questions added)
 
 This document tracks open questions requiring validation, investigation, team input, or further research before OpenTeamCode implementation can proceed with confidence.
 
@@ -34,14 +34,21 @@ These questions **must be answered** before committing to full implementation. F
 **Why It Matters**: Session continuation is the core value proposition of OpenTeamCode. If developers find 70% fidelity insufficient and prefer clean starts, the entire product thesis is questionable.
 
 **Validation Approach**:
-1. Conduct 10 real handoff scenarios between team members
+1. Conduct **25** real handoff scenarios between team members (minimum for statistical significance)
 2. Export OpenCode compaction summaries manually
 3. Second developer continues from artifact
 4. Measure: Success rate, time to productivity, satisfaction score
+5. **Baseline comparison**: Also test simple markdown handoff summary (no session artifact) for 10 scenarios
 
-**Success Criteria**: >60% of handoffs result in productive continuation without extensive re-explanation
+**Success Criteria**:
+- >**70%** of handoffs result in productive continuation without extensive re-explanation
+- Session artifacts must be **>20% better** than simple markdown handoff summary
+- "Productive continuation" defined as:
+  - Developer resumes within 30 minutes
+  - Task reaches next milestone without full context rebuild
+  - Developer self-reports 3+ on 5-point continuation quality scale
 
-**If Validation Fails**: Pivot to pure artifact generation (audit trail, documentation) rather than continuation. Session artifacts become historical records, not working documents.
+**If Validation Fails**: Pivot to pure artifact generation (audit trail, documentation) rather than continuation. Session artifacts become historical records, not working documents. If continuation is <20% better than simple summary, consider summary-only approach.
 
 ---
 
@@ -428,6 +435,169 @@ These questions require team discussion and input. They are not technical blocke
 
 ---
 
+## External Audit Questions
+
+These questions were identified during an external audit (January 2026) and represent gaps that could block enterprise adoption or undermine product value.
+
+### Q016: Data Classification and Retention Policy
+
+**Status**: OPEN
+**Priority**: CRITICAL
+**Owner**: TBD
+
+**Question**: What is the data classification/retention model for `.ai/sessions/` and `.ai/memory/`? Who approves storing these in source control?
+
+**Why It Matters**: Session artifacts may contain PII, customer data, secrets, or proprietary information. Enterprise data governance policies likely require explicit classification and retention rules. Storing session artifacts in git (permanent history) creates compliance exposure.
+
+**Considerations**:
+- What data classes are permitted in `.ai/` folders?
+- Who reviews/approves before session artifacts are committed?
+- What is the retention period? How are old artifacts purged?
+- Does storing prompts/responses in git violate any LLM provider ToS?
+- What redaction capabilities exist for sensitive content?
+
+**Resolution Required**: Data policy must be defined before Phase 0 experiments store any session artifacts.
+
+**If Unresolved**: This is an enterprise blocker. Cannot proceed to implementation without explicit data governance sign-off.
+
+---
+
+### Q017: Precision/Recall Measurement for Guardrails and PR Reviews
+
+**Status**: OPEN
+**Priority**: HIGH
+**Owner**: TBD
+
+**Question**: How will precision/recall for guardrails and PR reviews be measured and controlled over time, including a rollback plan when models regress?
+
+**Why It Matters**: Current metrics focus on recall (catching issues) but ignore precision (noise/false positives). High noise causes developers to ignore or bypass the system. Model updates can cause sudden quality regressions.
+
+**Considerations**:
+- What is the acceptable false positive rate for each guardrail tier?
+- How do we measure "noise" in PR reviews (issues dismissed without action)?
+- What triggers a rollback to previous model/prompts?
+- Who monitors quality metrics over time?
+
+**Proposed Metrics**:
+| Metric | Target | Rollback Trigger |
+|--------|--------|------------------|
+| Guardrail false positives | <5% | >10% |
+| PR review issues dismissed | <20% | >40% |
+| Developer satisfaction | >3.5/5 | <2.5/5 |
+
+---
+
+### Q018: OpenCode API Churn Contingency
+
+**Status**: OPEN
+**Priority**: HIGH
+**Owner**: TBD
+
+**Question**: What is the contingency plan if OpenCode API churn accelerates? What are the fork criteria?
+
+**Why It Matters**: OpenCode has had 8 breaking changes in 4 months with no semver policy. Heavy dependency without fallback plan creates significant project risk.
+
+**Proposed Mitigations**:
+1. **Pin to specific commit/tag** (not floating versions)
+2. **Automated regression test suite** against OpenCode (run on every OpenCode release)
+3. **Compatibility layer abstraction** isolating plugin API from OpenTeamCode core
+4. **Fork threshold criteria**: Consider fork if >3 breaking changes in 30 days OR >1 change breaking core OTC functionality
+
+**Fork Decision Factors**:
+- Cost of maintaining fork vs. adapting to upstream changes
+- OpenCode community trajectory (growing or shrinking?)
+- Ability to contribute fixes upstream
+
+---
+
+### Q019: Scope Expansion Requirements
+
+**Status**: OPEN
+**Priority**: MEDIUM
+**Owner**: TBD
+
+**Question**: Is Azure DevOps + Python scope intentional, or is cross-platform expansion required for viability?
+
+**Why It Matters**: Narrow scope (ADO + Python only) may limit adoption and perceived value. However, expanding too early fragments focus.
+
+**Considerations**:
+- Is ADO + Python sufficient for initial target users?
+- What is the expansion roadmap? (GitHub? GitLab? Multi-language?)
+- Do competitors offer broader platform support?
+- What architectural decisions would we make differently if multi-platform is required?
+
+**Current Position**: Document as future consideration, not MVP scope.
+
+---
+
+### Q020: Shadow AI Detection
+
+**Status**: OPEN
+**Priority**: MEDIUM
+**Owner**: TBD
+
+**Question**: How will "shadow AI" usage outside OTC be detected while claiming governance coverage?
+
+**Why It Matters**: OpenTeamCode claims governance and audit trail benefits, but developers can easily use Claude Code, Cursor, or ChatGPT directly, bypassing all controls. If shadow usage is common, governance claims are hollow.
+
+**Considerations**:
+- Can we detect non-OTC AI usage in PRs? (Commit metadata, code patterns?)
+- Is shadow AI a governance failure or acceptable escape valve?
+- Should OTC be the "recommended" tool or the "required" tool?
+- What friction level encourages OTC adoption without forcing workarounds?
+
+**Options**:
+1. **Accept shadow AI**: OTC provides governance for willing participants
+2. **Detect & report**: Flag likely AI-assisted code without OTC audit trail
+3. **Integrate competitors**: Allow Claude Code/Cursor as backends with OTC governance layer
+
+---
+
+### Q021: Session Retention Period
+
+**Status**: OPEN
+**Priority**: MEDIUM
+**Owner**: TBD
+
+**Question**: Is 90-day retention for archived session artifacts appropriate?
+
+**Why It Matters**: Session artifacts consume storage space in repos. Too short retention loses valuable historical context. Too long clutters the repository and may conflict with data retention policies.
+
+**Considerations**:
+- What is the typical PR merge-to-archive-to-delete lifecycle?
+- Do compliance requirements mandate longer retention?
+- Should retention be configurable per-repo?
+- How much storage do session artifacts typically consume?
+
+**Current Position**: Proposed 90-day retention, configurable in `.ai/config.yaml`.
+
+---
+
+### Q022: Session Assignment Workflow
+
+**Status**: OPEN
+**Priority**: LOW
+**Owner**: TBD
+
+**Question**: Should `otc sessions assign <id> <user>` require recipient acceptance?
+
+**Why It Matters**: Unsolicited session transfers could be annoying or create unclear ownership. However, requiring acceptance adds friction to a common handoff workflow.
+
+**Considerations**:
+- Is session assignment common enough to warrant workflow investment?
+- Can recipient decline or ignore assignment?
+- Does assignment transfer ownership or create a shared session?
+- How are notifications delivered (ADO, Slack, email)?
+
+**Options**:
+1. **Immediate transfer**: Assignment transfers ownership immediately, recipient notified
+2. **Acceptance required**: Assignment creates pending transfer, recipient must accept
+3. **Shared ownership**: Assignment adds recipient as co-owner, original owner retains access
+
+**Current Position**: Immediate transfer with notification (simplest). Revisit if adoption issues emerge.
+
+---
+
 ## Research Gaps
 
 These areas need additional research to inform design decisions.
@@ -590,8 +760,9 @@ azureDevOps:
 - **Q015**: ADO Rate Limiting Impact → **Manageable** - 200 TSTUs/5min per identity, empirical measurement required
 
 ### Remaining Open Questions
-- **Q001-Q004**: Critical validations requiring real user testing
+- **Q001-Q004**: Critical validations requiring real user testing (Q001 updated with stricter criteria)
 - **Q009-Q012**: Product questions requiring team input
+- **Q016-Q020**: External audit questions (enterprise blockers and risk mitigations)
 
 ---
 
@@ -599,5 +770,6 @@ azureDevOps:
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 0.3.0 | 2026-01-14 | Claude (Opus 4.5) | Added Q016-Q020 from external audit; updated Q001 with stricter validation criteria (70% bar, 25 scenarios, baseline comparison) |
 | 0.2.0 | 2026-01-14 | Claude (Opus 4.5) | Answered 7 technical/research questions (Q005-Q008, Q013-Q015) |
 | 0.1.0 | 2026-01-14 | Claude (feasibility analysis) | Initial question catalog from feasibility assessment |

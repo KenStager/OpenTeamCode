@@ -491,7 +491,7 @@ Before committing to full implementation, prove these hypotheses:
 
 | Hypothesis | Test | Success Criteria |
 |------------|------|------------------|
-| Session continuation provides value | 10 real handoff scenarios | >60% productive continuations |
+| Session continuation provides value | 25 real handoff scenarios | >70% productive continuations |
 | Standards injection works | With/without comparison | >80% compliance |
 | Guardrails are acceptable | Secrets detection prototype | <5% false positives |
 | Team will maintain conventions | 4-week pilot | Weekly updates, no abandonment |

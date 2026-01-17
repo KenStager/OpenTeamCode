@@ -115,7 +115,7 @@ OpenTeamCode doesn't compete with individual AI coding tools on raw capability. 
 
 ### Phase 0 Validation Criteria (Required Before Implementation)
 
-- **Session handoff**: >60% of scenarios result in productive continuation
+- **Session handoff**: >70% of scenarios result in productive continuation (25 scenarios minimum)
 - **Standards compliance**: >80% adherence to injected conventions
 - **Guardrail accuracy**: <5% false positive rate
 - **Team maintenance**: Weekly updates to standards, organic memory growth
@@ -130,7 +130,7 @@ OpenTeamCode doesn't compete with individual AI coding tools on raw capability. 
 
 **Efficiency**: Measurable reduction in PR cycle time and new hire ramp time.
 
-**Governance**: Zero secrets leakage through AI context; complete audit trail for compliance review.
+**Governance**: Pattern-based secrets detection with <5% false negative target; audit trail for AI-assisted decisions.
 
 ---
 

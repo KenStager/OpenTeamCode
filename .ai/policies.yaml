@@ -1,0 +1,47 @@
+# Guardrail Policies
+# Syntactic rules for code quality and security
+
+version: "0.1"
+
+# Secret detection patterns
+secrets:
+  enabled: true
+  action: BLOCK  # BLOCK | WARN | INFO
+  patterns:
+    - name: "AWS Access Key"
+      regex: "AKIA[0-9A-Z]{16}"
+      confidence: high
+    - name: "AWS Secret Key"
+      regex: "[A-Za-z0-9/+=]{40}"
+      confidence: medium
+      context_required: true  # Needs surrounding context validation
+    - name: "Generic API Key"
+      regex: "(api[_-]?key|apikey)\\s*[=:]\\s*['\"][A-Za-z0-9]{20,}['\"]"
+      confidence: high
+    - name: "Password Assignment"
+      regex: "(password|passwd|pwd)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]"
+      confidence: medium
+    - name: "Private Key Header"
+      regex: "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+      confidence: high
+    - name: "GitHub Token"
+      regex: "gh[pousr]_[A-Za-z0-9]{36,}"
+      confidence: high
+    - name: "Slack Token"
+      regex: "xox[baprs]-[A-Za-z0-9-]{10,}"
+      confidence: high
+
+# Code quality rules
+quality:
+  enabled: true
+  action: WARN
+  rules:
+    - name: "No bare except"
+      pattern: "except\\s*:"
+      message: "Use specific exception types instead of bare except"
+    - name: "No print statements"
+      pattern: "\\bprint\\s*\\("
+      message: "Use logging instead of print statements"
+      exceptions:
+        - "test_*.py"
+        - "*_test.py"

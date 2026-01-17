@@ -1,0 +1,6 @@
+# Slack configuration (TEST FILE - FAKE TOKENS)
+slack:
+  # Patterns that look like slack tokens but use TEST prefix
+  bot_token: xoxb-TEST-FAKE-TOKEN-abcdefghijklmnop
+  app_token: xoxp-TEST-FAKE-TOKEN-abcdefghijklmnop
+  webhook_url: https://example.com/webhook/FAKE_WEBHOOK_ID

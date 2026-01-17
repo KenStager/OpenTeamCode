@@ -1,0 +1,3 @@
+# GitHub tokens (TEST FILE - FAKE TOKENS)
+GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz1234567890
+GH_PAT=gho_abcdefghijklmnopqrstuvwxyz1234567890

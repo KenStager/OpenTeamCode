@@ -1,0 +1,27 @@
+# Configuration with encrypted values
+# Should NOT trigger - these are already encrypted
+
+database:
+  host: localhost
+  port: 5432
+  # Encrypted password (encrypted with app key, not the actual password)
+  password_encrypted: "gAAAAABh..."
+  # Encrypted connection string
+  connection_string_encrypted: "gAAAAABhXY..."
+
+api:
+  # Encrypted API key (stored encrypted at rest)
+  key_encrypted: "AQICAHh..."
+  # Reference to secret manager, not actual secret
+  secret_arn: "arn:aws:secretsmanager:us-east-1:123456789:secret:my-secret"
+
+# Vault paths (references, not secrets)
+vault:
+  database_creds: "secret/data/database/prod"
+  api_keys: "secret/data/api/external"
+
+# Environment variable references (not actual values)
+environment:
+  database_url: "${DATABASE_URL}"
+  api_key: "${API_KEY}"
+  secret_token: "${SECRET_TOKEN}"
