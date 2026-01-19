@@ -1,0 +1,7 @@
+# .env file with secrets (TEST FILE)
+NODE_ENV=production
+PORT=3000
+SECRET_KEY="my_application_secret_key_12345"
+API_SECRET="api_secret_value_abcdefghij"
+JWT_SECRET="jwt_signing_secret_1234567890"
+ENCRYPTION_KEY="encryption_key_abcdefghijklmno"

@@ -1,0 +1,8 @@
+# API Keys Configuration (TEST FILE - FAKE KEYS)
+services:
+  stripe:
+    api_key: "test_key_abcdefghijklmnopqrstuvwxyz"
+  sendgrid:
+    apiKey: "SG.abcdefghijklmnopqrstuvwxyz123456"
+  twilio:
+    auth_token: "abcdef1234567890abcdef1234567890"
