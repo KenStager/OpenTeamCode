@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **OpenTeamCode** is a team-native CLI extension for AI-assisted coding that transforms ephemeral individual sessions into durable, shareable, governed team state. Built on OpenCode as its foundation using a **Plugin + CLI hybrid** architecture, it adds collaboration primitives for enterprise Python teams on Azure DevOps.
 
-**Current Status**: **Phase 0 Validation In Progress**. Q002 and Q003 complete (PASS). `otc` CLI implemented, enabling Q001 and Q004 experiments.
+**Current Status**: **Phase E Complete**. Q002 and Q003 complete (PASS). `otc` CLI fully implemented. **NEW**: OpenCode plugin (`@opencode-ai/otc-plugin`) provides integrated team features.
 
 ## Phase 0 Validation (Current Work)
 
@@ -39,6 +39,29 @@ npm run otc -- init                       # Initialize .ai/ folder
 npm run otc -- doctor                     # Health check
 npm run otc -- status                     # Show current state
 ```
+
+### PR Commands Setup
+
+The `otc pr` commands require environment variables for Azure DevOps and Anthropic API access:
+
+```bash
+# Required for PR commands
+export ADO_PAT="your-azure-devops-personal-access-token"
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# Test with dry-run (no actual API calls)
+npm run otc -- pr summarize 1234 --dry-run
+npm run otc -- pr review 1234 --dry-run
+```
+
+Configure ADO organization/project in `.ai/config.yaml`:
+```yaml
+ado:
+  organization: your-org
+  project: your-project
+```
+
+Or the CLI will auto-detect from git remote URLs if you're in an ADO-hosted repo.
 
 ## Project Documentation
 
@@ -98,6 +121,13 @@ npm run otc -- guardrail list            # List patterns
 npm run otc -- handoff                   # Export session (requires OpenCode)
 npm run otc -- sessions list             # List session artifacts
 npm run otc -- continue <id>             # Resume session
+
+# PR Workflow Commands (Azure DevOps)
+npm run otc -- pr summarize <id>         # Generate AI summary for PR
+npm run otc -- pr review <id>            # Post AI code review
+npm run otc -- pr testplan <id>          # Generate test plan
+npm run otc -- pr followup <id>          # Re-review after feedback
+npm run otc -- pr link <id>              # Link session to PR
 ```
 
 ### otc Package Structure
@@ -115,7 +145,15 @@ packages/otc/
 │   │   ├── guardrail.ts      # otc guardrail scan/list/explain
 │   │   ├── handoff.ts        # otc handoff
 │   │   ├── sessions.ts       # otc sessions list/show/search
-│   │   └── continue.ts       # otc continue
+│   │   ├── continue.ts       # otc continue
+│   │   └── pr.ts             # otc pr summarize/review/testplan/followup/link
+│   ├── ado/                  # Azure DevOps integration
+│   │   ├── types.ts          # ADO API type definitions
+│   │   ├── auth.ts           # PAT token management
+│   │   ├── client.ts         # ADO REST API client
+│   │   └── pr.ts             # PR-specific operations
+│   ├── llm/
+│   │   └── index.ts          # Anthropic Claude integration for AI analysis
 │   ├── guardrails/
 │   │   ├── scanner.ts        # Secret detection (productionized from Q003)
 │   │   └── patterns.ts       # 10 default detection patterns
@@ -126,7 +164,53 @@ packages/otc/
 └── templates/                # .ai/ folder templates
     ├── config.yaml
     ├── standards.md
-    └── policies.yaml
+    ├── policies.yaml
+    └── review.md             # PR review rubric template
+```
+
+### OTC Plugin Package (Phase E - NEW)
+
+The OpenCode plugin at `packages/otc-plugin/` provides integrated team features within OpenCode:
+
+```
+packages/otc-plugin/
+├── package.json              # @opencode-ai/otc-plugin
+├── tsconfig.json
+├── scripts/
+│   └── bundle.mjs            # esbuild bundler
+├── src/
+│   ├── index.ts              # Plugin entry point (exports OTCPlugin)
+│   ├── hooks/
+│   │   ├── standards.ts      # experimental.chat.system.transform hook
+│   │   └── guardrails.ts     # permission.ask hook (blocks secrets)
+│   ├── tools/
+│   │   ├── pr-review.ts      # otc:pr-review tool
+│   │   ├── pr-summarize.ts   # otc:pr-summarize tool
+│   │   ├── pr-testplan.ts    # otc:pr-testplan tool
+│   │   ├── guardrail-scan.ts # otc:guardrail-scan tool
+│   │   └── session-export.ts # otc:session-export tool
+│   └── lib/
+│       ├── config.ts         # .ai/ config loading
+│       ├── scanner.ts        # Secret detection (reused from CLI)
+│       ├── llm.ts            # Anthropic Claude integration
+│       └── ado.ts            # Azure DevOps API client
+└── dist/
+    └── index.js              # Bundled plugin (esbuild output)
+```
+
+**Plugin Development:**
+```bash
+cd packages/otc-plugin
+npm install
+npm run build                 # Build plugin with esbuild
+```
+
+**Using the Plugin:**
+```jsonc
+// In project's opencode.json or opencode.jsonc:
+{
+  "plugin": ["file:///path/to/packages/otc-plugin/dist/index.js"]
+}
 ```
 
 ### OpenCode Key Integration Points

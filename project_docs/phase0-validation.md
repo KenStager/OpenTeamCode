@@ -65,7 +65,37 @@ The implementation was reviewed by a code-review-specialist agent. Six issues we
 - User-friendly YAML error messages
 - Removed unused imports
 
-See `packages/otc/` for full implementation (~2,200 lines of TypeScript).
+See `packages/otc/` for full implementation (~5,400 lines of TypeScript including PR commands and ADO integration).
+
+---
+
+## Tooling Milestone: OpenCode Plugin Implemented (Phase E)
+
+**Date**: 2026-01-19
+**Status**: Complete
+
+The OpenCode plugin at `packages/otc-plugin/` provides integrated team features within OpenCode sessions.
+
+### Plugin Features
+
+| Feature | Hook/Tool | Description |
+|---------|-----------|-------------|
+| Standards Injection | `experimental.chat.system.transform` | Auto-injects `.ai/standards.md` |
+| Secret Guardrails | `permission.ask` | Blocks writes containing secrets |
+| PR Review | `otc:pr-review` | AI code review to Azure DevOps |
+| PR Summary | `otc:pr-summarize` | AI-generated PR descriptions |
+| Test Plan | `otc:pr-testplan` | Risk-based test plans |
+| Guardrail Scan | `otc:guardrail-scan` | On-demand secret detection |
+| Session Export | `otc:session-export` | Export for team handoff |
+
+### Security Hardening Applied
+
+1. PR ID validation (positive integers only)
+2. Prompt injection protection (escaped delimiters)
+3. Context length limits (100KB max with truncation)
+4. Clear user feedback on guardrail blocks
+
+**Lines of Code**: ~2,100 TypeScript
 
 ---
 

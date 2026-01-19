@@ -29,6 +29,20 @@ export const ConfigSchema = z.object({
       policies: z.string().default("policies.yaml"),
     })
     .optional(),
+  ado: z
+    .object({
+      organization: z.string().optional(),
+      project: z.string().optional(),
+      pat_env: z.string().default("ADO_PAT"),
+    })
+    .optional(),
+  llm: z
+    .object({
+      provider: z.string().default("anthropic"),
+      model: z.string().default("claude-sonnet-4-20250514"),
+      api_key_env: z.string().default("ANTHROPIC_API_KEY"),
+    })
+    .optional(),
 })
 
 export type Config = z.infer<typeof ConfigSchema>
@@ -78,6 +92,7 @@ export const CONFIG_FILE = "config.yaml"
 export const STANDARDS_FILE = "standards.md"
 export const POLICIES_FILE = "policies.yaml"
 export const SESSIONS_FOLDER = "sessions"
+export const REVIEW_FILE = "review.md"
 
 /**
  * Find the .ai/ folder starting from a directory and walking up
@@ -179,6 +194,21 @@ export async function loadStandards(aiPath: string): Promise<string | null> {
 }
 
 /**
+ * Load the .ai/review.md file (PR review rubric)
+ */
+export async function loadReviewRubric(aiPath: string): Promise<string | null> {
+  const reviewPath = join(aiPath, REVIEW_FILE)
+  try {
+    return await readFile(reviewPath, "utf-8")
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null
+    }
+    throw error
+  }
+}
+
+/**
  * List all sessions in .ai/sessions/
  */
 export async function listSessions(aiPath: string): Promise<SessionMetadata[]> {
@@ -212,6 +242,29 @@ export async function listSessions(aiPath: string): Promise<SessionMetadata[]> {
   return sessions
 }
 
+// Minimum length for partial session ID matching to avoid collisions
+const MIN_PARTIAL_SESSION_ID_LENGTH = 12
+
+/**
+ * Check if a session ID matches the search query.
+ * Supports exact ID match or prefix/suffix matching with minimum length requirement.
+ * Note: Only matches against session ID, not folder name, to prevent collision attacks.
+ */
+function sessionIdMatches(sessionId: string, searchQuery: string): boolean {
+  // Exact ID match takes priority
+  if (sessionId === searchQuery) {
+    return true
+  }
+
+  // Require minimum length for partial matching to reduce collision risk
+  if (searchQuery.length < MIN_PARTIAL_SESSION_ID_LENGTH) {
+    return false
+  }
+
+  // Allow prefix or suffix matching on the session ID only
+  return sessionId.startsWith(searchQuery) || sessionId.endsWith(searchQuery)
+}
+
 /**
  * Get a specific session by ID
  */
@@ -220,6 +273,7 @@ export async function getSession(aiPath: string, sessionId: string): Promise<Ses
 
   try {
     const entries = await readdir(sessionsPath, { withFileTypes: true })
+    const matches: SessionMetadata[] = []
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
@@ -229,12 +283,17 @@ export async function getSession(aiPath: string, sessionId: string): Promise<Ses
         const content = await readFile(sessionJsonPath, "utf-8")
         const parsed = JSON.parse(content)
         const session = SessionMetadataSchema.parse(parsed)
-        if (session.id === sessionId || entry.name.includes(sessionId)) {
-          return session
+        if (sessionIdMatches(session.id, sessionId)) {
+          matches.push(session)
         }
       } catch {
         // Skip invalid session folders
       }
+    }
+
+    // Return only if we have exactly one match to avoid ambiguity
+    if (matches.length === 1) {
+      return matches[0]
     }
   } catch {
     return null
@@ -251,6 +310,7 @@ export async function getSessionFolder(aiPath: string, sessionId: string): Promi
 
   try {
     const entries = await readdir(sessionsPath, { withFileTypes: true })
+    const matches: { path: string; session: SessionMetadata }[] = []
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue
@@ -260,12 +320,17 @@ export async function getSessionFolder(aiPath: string, sessionId: string): Promi
         const content = await readFile(sessionJsonPath, "utf-8")
         const parsed = JSON.parse(content)
         const session = SessionMetadataSchema.parse(parsed)
-        if (session.id === sessionId || entry.name.includes(sessionId)) {
-          return join(sessionsPath, entry.name)
+        if (sessionIdMatches(session.id, sessionId)) {
+          matches.push({ path: join(sessionsPath, entry.name), session })
         }
       } catch {
         // Skip invalid session folders
       }
+    }
+
+    // Return only if we have exactly one match to avoid ambiguity
+    if (matches.length === 1) {
+      return matches[0].path
     }
   } catch {
     return null

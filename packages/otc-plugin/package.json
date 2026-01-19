@@ -1,0 +1,46 @@
+{
+  "name": "@opencode-ai/otc-plugin",
+  "version": "0.1.0",
+  "description": "OpenTeamCode plugin for OpenCode - Team collaboration features for AI-assisted coding",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/bundle.mjs",
+    "build:bun": "bun build ./src/index.ts --outdir ./dist --target node --external @opencode-ai/plugin --external @anthropic-ai/sdk --external zod",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.4"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "*"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "file:../../opencode/packages/plugin",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "opencode",
+    "openteamcode",
+    "otc",
+    "plugin",
+    "ai-coding",
+    "team-collaboration"
+  ],
+  "author": "OpenTeamCode",
+  "license": "MIT"
+}

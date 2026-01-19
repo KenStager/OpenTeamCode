@@ -13,6 +13,7 @@ import { GuardrailCommand } from "./commands/guardrail"
 import { HandoffCommand } from "./commands/handoff"
 import { SessionsCommand } from "./commands/sessions"
 import { ContinueCommand } from "./commands/continue"
+import { PRCommand } from "./commands/pr"
 
 const VERSION = "0.1.0"
 
@@ -28,6 +29,7 @@ async function main() {
     .command(HandoffCommand)
     .command(SessionsCommand)
     .command(ContinueCommand)
+    .command(PRCommand)
     .demandCommand(1, "Please specify a command")
     .help()
     .alias("h", "help")
@@ -41,7 +43,8 @@ async function main() {
     .parse()
 }
 
-main().catch((error) => {
-  console.error("Error:", error.message)
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error("Error:", message)
   process.exit(1)
 })

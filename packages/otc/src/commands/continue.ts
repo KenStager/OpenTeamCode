@@ -16,8 +16,8 @@ import { createClient } from "../util/opencode-client"
 
 interface ContinueArgs {
   id: string
-  strategy?: "merge" | "fork" | "summary"
-  json?: boolean
+  strategy: "merge" | "fork" | "summary"
+  json: boolean
 }
 
 /**
@@ -68,10 +68,28 @@ async function buildContextPrompt(
   try {
     const contextPath = join(sessionFolder, "context.jsonl")
     const contextData = await readFile(contextPath, "utf-8")
-    const messages = contextData
-      .split("\n")
-      .filter((line) => line.trim())
-      .map((line) => JSON.parse(line))
+
+    // Limit lines to prevent memory exhaustion from malicious files
+    const MAX_CONTEXT_LINES = 1000
+    const lines = contextData.split("\n").filter((line) => line.trim())
+    const limitedLines = lines.slice(0, MAX_CONTEXT_LINES)
+
+    // Parse with validation and error handling
+    const messages = limitedLines
+      .map((line) => {
+        try {
+          const parsed = JSON.parse(line)
+          // Validate expected structure - must be an object
+          if (typeof parsed !== "object" || parsed === null) {
+            return null
+          }
+          return parsed
+        } catch {
+          // Skip malformed JSON lines
+          return null
+        }
+      })
+      .filter((msg): msg is Record<string, unknown> => msg !== null)
 
     // Get recent messages (last 5 exchanges)
     const recentMessages = messages.slice(-10)
@@ -84,9 +102,14 @@ async function buildContextPrompt(
 
       for (const msg of recentMessages) {
         const role = msg.role === "user" ? "User" : "Assistant"
-        const textParts = msg.parts?.filter((p: { t: string }) => p.t === "text")
-        if (textParts && textParts.length > 0 && textParts[0].v) {
-          const text = textParts[0].v as string
+        const parts = msg.parts
+        if (!Array.isArray(parts)) continue
+
+        const textParts = parts.filter((p): p is { t: string; v: unknown } =>
+          typeof p === "object" && p !== null && "t" in p && p.t === "text"
+        )
+        if (textParts.length > 0 && textParts[0].v) {
+          const text = String(textParts[0].v)
           const preview = text.length > 200 ? text.slice(0, 197) + "..." : text
           lines.push(`**${role}:** ${preview}`)
           lines.push("")
@@ -109,8 +132,8 @@ async function buildContextPrompt(
 export const ContinueCommand: CommandModule<{}, ContinueArgs> = {
   command: "continue <id>",
   describe: "Resume a handed-off session with OpenCode",
-  builder: (yargs) => {
-    return yargs
+  builder: (yargs) =>
+    yargs
       .positional("id", {
         describe: "Session ID (can be partial)",
         type: "string",
@@ -118,17 +141,15 @@ export const ContinueCommand: CommandModule<{}, ContinueArgs> = {
       })
       .option("strategy", {
         alias: "s",
-        type: "string",
         choices: ["merge", "fork", "summary"] as const,
         description: "Continuation strategy: merge (inject context), fork (new session with context), summary (compact first)",
-        default: "fork",
+        default: "fork" as const,
       })
       .option("json", {
         type: "boolean",
         description: "Output as JSON (don't launch OpenCode)",
         default: false,
-      })
-  },
+      }),
   handler: async (args) => {
     const aiPath = await findAiFolder()
     if (!aiPath) {
@@ -165,7 +186,7 @@ export const ContinueCommand: CommandModule<{}, ContinueArgs> = {
     output.header("Continuing Session")
     output.keyValue("Session", session.title || "Untitled")
     output.keyValue("ID", session.id.slice(-8))
-    output.keyValue("Strategy", args.strategy || "fork")
+    output.keyValue("Strategy", args.strategy)
     console.log()
 
     if (session.intent) {

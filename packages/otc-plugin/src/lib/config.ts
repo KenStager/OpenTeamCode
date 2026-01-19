@@ -1,0 +1,187 @@
+/**
+ * Configuration loading utilities for .ai/ folder
+ * Adapted from packages/otc/src/util/config.ts for plugin use
+ */
+
+import { readFile, access } from "fs/promises"
+import { join, resolve } from "path"
+import { parse as parseYaml } from "yaml"
+import { z } from "zod"
+
+// Schema for .ai/config.yaml
+export const ConfigSchema = z.object({
+  version: z.string().default("1"),
+  team: z.string().optional(),
+  opencode: z
+    .object({
+      server: z.string().optional(),
+      port: z.number().optional(),
+    })
+    .optional(),
+  sessions: z
+    .object({
+      directory: z.string().default("sessions"),
+      visibility: z.enum(["team", "private"]).default("team"),
+    })
+    .optional(),
+  guardrails: z
+    .object({
+      enabled: z.boolean().default(true),
+      policies: z.string().default("policies.yaml"),
+    })
+    .optional(),
+  ado: z
+    .object({
+      organization: z.string().optional(),
+      project: z.string().optional(),
+      pat_env: z.string().default("ADO_PAT"),
+    })
+    .optional(),
+  llm: z
+    .object({
+      provider: z.string().default("anthropic"),
+      model: z.string().default("claude-sonnet-4-20250514"),
+      api_key_env: z.string().default("ANTHROPIC_API_KEY"),
+    })
+    .optional(),
+})
+
+export type Config = z.infer<typeof ConfigSchema>
+
+// Schema for .ai/policies.yaml
+export const PolicyPatternSchema = z.object({
+  name: z.string(),
+  regex: z.string(),
+  confidence: z.enum(["high", "medium", "low"]).default("medium"),
+  description: z.string().optional(),
+  falsePositiveIndicators: z.array(z.string()).optional(),
+})
+
+export const PoliciesSchema = z.object({
+  version: z.string().default("1"),
+  patterns: z.array(PolicyPatternSchema).default([]),
+  excludePaths: z.array(z.string()).optional(),
+  excludeExtensions: z.array(z.string()).optional(),
+})
+
+export type Policies = z.infer<typeof PoliciesSchema>
+export type PolicyPattern = z.infer<typeof PolicyPatternSchema>
+
+export const AI_FOLDER = ".ai"
+export const CONFIG_FILE = "config.yaml"
+export const STANDARDS_FILE = "standards.md"
+export const POLICIES_FILE = "policies.yaml"
+export const SESSIONS_FOLDER = "sessions"
+export const REVIEW_FILE = "review.md"
+
+/**
+ * Find the .ai/ folder starting from a directory and walking up
+ */
+export async function findAiFolder(startDir: string = process.cwd()): Promise<string | null> {
+  let currentDir = resolve(startDir)
+
+  while (true) {
+    const aiPath = join(currentDir, AI_FOLDER)
+    try {
+      await access(aiPath)
+      return aiPath
+    } catch {
+      const parentDir = resolve(currentDir, "..")
+      // Stop when we've reached the filesystem root (parent equals current)
+      if (parentDir === currentDir) {
+        return null
+      }
+      currentDir = parentDir
+    }
+  }
+}
+
+/**
+ * Check if .ai/ folder exists in the given directory
+ */
+export async function hasAiFolder(dir: string = process.cwd()): Promise<boolean> {
+  try {
+    await access(join(dir, AI_FOLDER))
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Load and parse the .ai/config.yaml file
+ */
+export async function loadConfig(aiPath: string): Promise<Config | null> {
+  const configPath = join(aiPath, CONFIG_FILE)
+  try {
+    const content = await readFile(configPath, "utf-8")
+    const parsed = parseYaml(content)
+    return ConfigSchema.parse(parsed)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null
+    }
+    if (error instanceof z.ZodError) {
+      const issues = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")
+      throw new Error(`Invalid config.yaml schema: ${issues}`)
+    }
+    if (error instanceof Error && error.name === "YAMLParseError") {
+      throw new Error(`Invalid YAML syntax in config.yaml: ${error.message}`)
+    }
+    throw error
+  }
+}
+
+/**
+ * Load and parse the .ai/policies.yaml file
+ */
+export async function loadPolicies(aiPath: string): Promise<Policies | null> {
+  const policiesPath = join(aiPath, POLICIES_FILE)
+  try {
+    const content = await readFile(policiesPath, "utf-8")
+    const parsed = parseYaml(content)
+    return PoliciesSchema.parse(parsed)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null
+    }
+    if (error instanceof z.ZodError) {
+      const issues = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")
+      throw new Error(`Invalid policies.yaml schema: ${issues}`)
+    }
+    if (error instanceof Error && error.name === "YAMLParseError") {
+      throw new Error(`Invalid YAML syntax in policies.yaml: ${error.message}`)
+    }
+    throw error
+  }
+}
+
+/**
+ * Load the .ai/standards.md file
+ */
+export async function loadStandards(aiPath: string): Promise<string | null> {
+  const standardsPath = join(aiPath, STANDARDS_FILE)
+  try {
+    return await readFile(standardsPath, "utf-8")
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null
+    }
+    throw error
+  }
+}
+
+/**
+ * Load the .ai/review.md file (PR review rubric)
+ */
+export async function loadReviewRubric(aiPath: string): Promise<string | null> {
+  const reviewPath = join(aiPath, REVIEW_FILE)
+  try {
+    return await readFile(reviewPath, "utf-8")
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null
+    }
+    throw error
+  }
+}

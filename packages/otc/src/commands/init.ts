@@ -7,7 +7,7 @@ import { mkdir, writeFile, access, copyFile, readFile } from "fs/promises"
 import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 import * as output from "../util/output"
-import { AI_FOLDER, CONFIG_FILE, STANDARDS_FILE, POLICIES_FILE, SESSIONS_FOLDER } from "../util/config"
+import { AI_FOLDER, CONFIG_FILE, STANDARDS_FILE, POLICIES_FILE, SESSIONS_FOLDER, REVIEW_FILE } from "../util/config"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const TEMPLATES_DIR = join(__dirname, "..", "..", "templates")
@@ -88,6 +88,7 @@ export const InitCommand: CommandModule<{}, InitArgs> = {
       { template: "config.yaml", dest: CONFIG_FILE },
       { template: "standards.md", dest: STANDARDS_FILE },
       { template: "policies.yaml", dest: POLICIES_FILE },
+      { template: "review.md", dest: REVIEW_FILE },
     ]
 
     for (const file of files) {
@@ -138,6 +139,8 @@ export const InitCommand: CommandModule<{}, InitArgs> = {
     output.info("Next steps:")
     output.listItem("Edit .ai/standards.md with your team's coding conventions")
     output.listItem("Review .ai/policies.yaml guardrail patterns")
+    output.listItem("Customize .ai/review.md with your team's PR review rubric")
+    output.listItem("Configure ADO settings in .ai/config.yaml for PR commands")
     output.listItem("Run 'otc status' to verify setup")
     output.listItem("Run 'otc doctor' for a health check")
     console.log()

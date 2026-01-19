@@ -20,3 +20,15 @@ sessions:
 guardrails:
   enabled: true
   policies: policies.yaml
+
+# Azure DevOps configuration
+# ado:
+#   organization: your-org          # ADO organization name
+#   project: your-project           # ADO project name
+#   pat_env: ADO_PAT                # Environment variable containing PAT
+
+# LLM configuration for AI-powered features
+# llm:
+#   provider: anthropic             # Currently only anthropic supported
+#   model: claude-sonnet-4-20250514  # Model to use for analysis
+#   api_key_env: ANTHROPIC_API_KEY  # Environment variable containing API key
