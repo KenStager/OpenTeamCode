@@ -1,0 +1,22 @@
+# OpenTeamCode Configuration
+# https://github.com/your-org/openteamcode
+
+version: "1"
+
+# Team identifier (used for session visibility and audit)
+# team: your-team-name
+
+# OpenCode server configuration (optional)
+# opencode:
+#   server: http://localhost:4096
+#   port: 4096
+
+# Session storage configuration
+sessions:
+  directory: sessions
+  visibility: team  # team | private
+
+# Guardrails configuration
+guardrails:
+  enabled: true
+  policies: policies.yaml

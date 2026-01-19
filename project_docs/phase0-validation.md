@@ -10,12 +10,62 @@
 
 | Experiment | Status | Progress | Result |
 |------------|--------|----------|--------|
-| Q001: Session Continuation | Not Started | 0/25 scenarios | - |
+| Q001: Session Continuation | **Ready** | 0/25 scenarios | - |
 | Q002: Standards Injection | **COMPLETE** | 20/20 tasks | **PASS (100%)** |
 | Q003: Guardrails | **COMPLETE** | 75 files tested | **PASS (90% TPR, 3.6% FPR)** |
-| Q004: Team Discipline | Not Started | Week 0/4 | - |
+| Q004: Team Discipline | **Ready** | Week 0/4 | - |
 
-**Overall Phase 0 Status**: `In Progress` (2/4 experiments complete)
+**Overall Phase 0 Status**: `In Progress` (2/4 experiments complete, 2/4 ready with tooling)
+
+---
+
+## Tooling Milestone: `otc` CLI Implemented
+
+**Date**: 2026-01-18
+**Status**: Complete
+
+The `otc` CLI has been implemented at `packages/otc/`, enabling Q001 and Q004 experiments. Team members can now "try this tool" rather than "explore this research project."
+
+### Commands Available
+
+| Command | Purpose | Enables |
+|---------|---------|---------|
+| `otc init` | Create `.ai/` folder with templates | Q004 (team discipline) |
+| `otc status` | Show config validity, sessions, OpenCode status | Q004 |
+| `otc doctor` | Health check with 11 checks and remediation | Q004 |
+| `otc guardrail scan [path]` | Run secret detection on files | Productionized Q003 |
+| `otc guardrail list` | Show active patterns | Q003 verification |
+| `otc guardrail explain <id>` | Show pattern details | Q003 verification |
+| `otc handoff` | Export session to `.ai/sessions/` | **Q001 (session handoff)** |
+| `otc sessions list` | List session artifacts | Q001 |
+| `otc sessions show <id>` | Display session details | Q001 |
+| `otc sessions search <query>` | Search session artifacts | Q001 |
+| `otc continue <id>` | Resume handed-off session | **Q001 (session continuation)** |
+
+### Running the CLI
+
+```bash
+cd packages/otc
+npm install
+npx tsx src/index.ts --help
+
+# Or via npm scripts
+npm run otc -- init
+npm run otc -- status
+npm run otc -- guardrail scan .
+```
+
+### Code Review Findings Applied
+
+The implementation was reviewed by a code-review-specialist agent. Six issues were identified and fixed:
+- URL path construction bugs in OpenCode client
+- Memory exhaustion risk (added 5MB file size limit)
+- Cross-platform root detection
+- Error handling improvements
+- User-friendly YAML error messages
+- Removed unused imports
+
+See `packages/otc/` for full implementation (~2,200 lines of TypeScript).
 
 ---
 

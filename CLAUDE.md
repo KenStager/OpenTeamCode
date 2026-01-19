@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **OpenTeamCode** is a team-native CLI extension for AI-assisted coding that transforms ephemeral individual sessions into durable, shareable, governed team state. Built on OpenCode as its foundation using a **Plugin + CLI hybrid** architecture, it adds collaboration primitives for enterprise Python teams on Azure DevOps.
 
-**Current Status**: **Phase 0 Validation In Progress**. Infrastructure created, ready for experiments.
+**Current Status**: **Phase 0 Validation In Progress**. Q002 and Q003 complete (PASS). `otc` CLI implemented, enabling Q001 and Q004 experiments.
 
 ## Phase 0 Validation (Current Work)
 
@@ -14,20 +14,30 @@ Phase 0 validates four critical hypotheses before full implementation. All valid
 
 | Experiment | Target | Status | Files |
 |------------|--------|--------|-------|
-| Q001: Session Continuation | >70% productive | Ready | `validation/q001-session-handoff/` |
-| Q002: Standards Injection | >80% compliance | Ready | `validation/q002-standards-injection/` |
-| Q003: Guardrails | <5% false positives | Ready | `validation/q003-guardrails/` |
-| Q004: Team Discipline | Weekly maintenance | Ready | `validation/q004-team-discipline/` |
+| Q001: Session Continuation | >70% productive | **Ready** (tooling complete) | `validation/q001-session-handoff/` |
+| Q002: Standards Injection | >80% compliance | **PASS (100%)** | `validation/q002-standards-injection/` |
+| Q003: Guardrails | <5% false positives | **PASS (3.6% FPR)** | `validation/q003-guardrails/` |
+| Q004: Team Discipline | Weekly maintenance | **Ready** (tooling complete) | `validation/q004-team-discipline/` |
 
 **Tracking**: `project_docs/phase0-validation.md`
 
 ### Running Experiments
 
 ```bash
-# Q003: Test guardrails prototype
-cd opencode && bun install  # First time only
-bun run validation/q003-guardrails/prototype.ts validation/q003-guardrails/corpus/true-positives/
-bun run validation/q003-guardrails/prototype.ts validation/q003-guardrails/corpus/true-negatives/
+# Use the otc CLI for experiments (preferred)
+cd packages/otc && npm install
+npm run otc -- guardrail scan validation/q003-guardrails/corpus/true-positives/
+npm run otc -- guardrail scan validation/q003-guardrails/corpus/true-negatives/
+
+# Q001: Session handoff (requires OpenCode running)
+npm run otc -- handoff                    # Export current session
+npm run otc -- sessions list              # List exported sessions
+npm run otc -- continue <session-id>      # Resume a session
+
+# Q004: Team discipline
+npm run otc -- init                       # Initialize .ai/ folder
+npm run otc -- doctor                     # Health check
+npm run otc -- status                     # Show current state
 ```
 
 ## Project Documentation
@@ -69,6 +79,55 @@ bun run --cwd packages/app dev           # Web UI dev server (localhost:5173)
 ```
 
 See `./opencode/CLAUDE.md` for comprehensive OpenCode development guidance.
+
+## OpenTeamCode CLI (`otc`)
+
+The `otc` CLI is implemented at `./packages/otc/`. It provides team collaboration commands that work alongside OpenCode.
+
+### otc Development Commands
+
+```bash
+# From ./packages/otc/ directory
+npm install                              # Install dependencies
+npm run otc -- --help                    # Show all commands
+npm run otc -- init                      # Initialize .ai/ folder
+npm run otc -- status                    # Show current state
+npm run otc -- doctor                    # Health check
+npm run otc -- guardrail scan [path]     # Scan for secrets
+npm run otc -- guardrail list            # List patterns
+npm run otc -- handoff                   # Export session (requires OpenCode)
+npm run otc -- sessions list             # List session artifacts
+npm run otc -- continue <id>             # Resume session
+```
+
+### otc Package Structure
+
+```
+packages/otc/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.ts              # CLI entry point (yargs)
+│   ├── commands/
+│   │   ├── init.ts           # otc init
+│   │   ├── status.ts         # otc status
+│   │   ├── doctor.ts         # otc doctor (11 health checks)
+│   │   ├── guardrail.ts      # otc guardrail scan/list/explain
+│   │   ├── handoff.ts        # otc handoff
+│   │   ├── sessions.ts       # otc sessions list/show/search
+│   │   └── continue.ts       # otc continue
+│   ├── guardrails/
+│   │   ├── scanner.ts        # Secret detection (productionized from Q003)
+│   │   └── patterns.ts       # 10 default detection patterns
+│   └── util/
+│       ├── config.ts         # .ai/ config loading (Zod schemas)
+│       ├── output.ts         # CLI output helpers (chalk)
+│       └── opencode-client.ts # OpenCode HTTP API client
+└── templates/                # .ai/ folder templates
+    ├── config.yaml
+    ├── standards.md
+    └── policies.yaml
+```
 
 ### OpenCode Key Integration Points
 
@@ -226,10 +285,10 @@ See `project_docs/unanswered-questions.md` for the full question registry with s
 
 ### Requires Validation (Phase 0 - CRITICAL)
 **Implementation blocked until these pass:**
-- ❓ Does session continuation provide real value in practice? (>60% success)
-- ❓ What compliance rate does standards injection achieve? (>80% target)
-- ❓ What false positive rate is acceptable for guardrails? (<5% target)
-- ❓ Will team maintain `.ai/` conventions over time?
+- ❓ Does session continuation provide real value in practice? (>60% success) - **Q001 Ready** (tooling complete)
+- ✅ What compliance rate does standards injection achieve? (>80% target) - **Q002 PASS (100%)**
+- ✅ What false positive rate is acceptable for guardrails? (<5% target) - **Q003 PASS (3.6% FPR)**
+- ❓ Will team maintain `.ai/` conventions over time? - **Q004 Ready** (tooling complete)
 
 ### Requires Team Input
 - ❓ Session artifact visibility: team-wide by default or opt-in?

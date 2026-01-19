@@ -1,0 +1,92 @@
+# OpenTeamCode Guardrail Policies
+# These patterns are checked during `otc guardrail scan`
+
+version: "1"
+
+# Patterns to detect potential secrets and security issues
+patterns:
+  - name: AWS Access Key
+    regex: "AKIA[0-9A-Z]{16}"
+    confidence: high
+    description: AWS Access Key ID starting with AKIA
+
+  - name: AWS Secret Key
+    regex: "(?<![A-Za-z0-9/+=])[A-Za-z0-9/+=]{40}(?![A-Za-z0-9/+=])"
+    confidence: medium
+    description: Potential AWS Secret Access Key (40 char base64)
+    falsePositiveIndicators:
+      - example
+      - placeholder
+      - your_key_here
+
+  - name: Generic API Key Assignment
+    regex: "(api[_-]?key|apikey)\\s*[=:]\\s*['\"][A-Za-z0-9]{20,}['\"]"
+    confidence: high
+    description: API key being assigned to a variable
+
+  - name: Password Assignment
+    regex: "(password|passwd|pwd)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]"
+    confidence: medium
+    description: Password being assigned to a variable
+    falsePositiveIndicators:
+      - example
+      - placeholder
+      - test
+      - dummy
+
+  - name: Private Key Header
+    regex: "-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+    confidence: high
+    description: PEM-encoded private key
+
+  - name: GitHub Token
+    regex: "gh[pousr]_[A-Za-z0-9]{36,}"
+    confidence: high
+    description: GitHub personal access token or app token
+
+  - name: Slack Token
+    regex: "xox[baprs]-[A-Za-z0-9-]{10,}"
+    confidence: high
+    description: Slack API token
+
+  - name: Generic Secret Assignment
+    regex: "(secret|token|credential)\\s*[=:]\\s*['\"][A-Za-z0-9_\\-]{16,}['\"]"
+    confidence: medium
+    description: Secret/token being assigned to a variable
+    falsePositiveIndicators:
+      - example
+      - placeholder
+      - test
+      - mock
+
+  - name: Bearer Token
+    regex: "Bearer\\s+[A-Za-z0-9\\-_]+\\.[A-Za-z0-9\\-_]+\\.[A-Za-z0-9\\-_]+"
+    confidence: high
+    description: JWT Bearer token in code
+
+  - name: Basic Auth Header
+    regex: "Basic\\s+[A-Za-z0-9+/=]{20,}"
+    confidence: medium
+    description: Basic authentication header with encoded credentials
+
+# Paths to exclude from scanning
+excludePaths:
+  - node_modules
+  - .git
+  - dist
+  - build
+  - __pycache__
+  - "*.min.js"
+  - "*.bundle.js"
+
+# File extensions to exclude
+excludeExtensions:
+  - .png
+  - .jpg
+  - .jpeg
+  - .gif
+  - .ico
+  - .woff
+  - .woff2
+  - .ttf
+  - .eot

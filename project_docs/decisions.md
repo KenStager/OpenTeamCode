@@ -1,8 +1,8 @@
 # OpenTeamCode: Architecture Decisions
 
-**Version**: 0.1.0
-**Last Updated**: January 14, 2026
-**Status**: Research & Planning Phase
+**Version**: 0.2.0
+**Last Updated**: January 18, 2026
+**Status**: Phase 0 Validation + Tooling Implementation
 
 ---
 
@@ -16,6 +16,7 @@
 | D004 | Defer Model Routing primitive | Recommended | 2026-01-14 |
 | D005 | Scope guardrails to syntactic/procedural rules | Recommended | 2026-01-14 |
 | D006 | Position Context Graph as advisory | Recommended | 2026-01-14 |
+| D007 | Build `otc` CLI before team involvement | **Implemented** | 2026-01-18 |
 
 ---
 
@@ -330,6 +331,95 @@ Context Graph (Primitive A) provides cross-repo dependency awareness via AST-bas
 
 ---
 
+## D007: Build `otc` CLI Before Team Involvement
+
+**Status**: Implemented
+**Date**: 2026-01-18
+
+### Context
+
+Q002 (Standards Injection) and Q003 (Guardrails) validation experiments passed. Q001 (Session Continuation) and Q004 (Team Discipline) experiments require team participation, but asking team members to "explore a research project" creates friction.
+
+### Decision
+
+**Build functional `otc` CLI tooling so team members can "try this tool" rather than "explore this research project."**
+
+Implementation includes:
+- **Phase A**: Core commands (`otc init`, `otc status`, `otc doctor`)
+- **Phase B**: Guardrails (`otc guardrail scan/list/explain`) - productionized from Q003 prototype
+- **Phase C**: Session artifacts (`otc handoff`, `otc sessions`, `otc continue`)
+
+### Rationale
+
+- Transforms Q001/Q004 ask from research exploration to tool feedback
+- Productionizes validated Q003 guardrails for immediate team use
+- Provides concrete artifact format for session handoff experiments
+- Enables team discipline tracking via `otc doctor` health checks
+- Reduces friction for team adoption
+
+### Implementation Details
+
+**Package**: `packages/otc/` (~2,200 lines TypeScript)
+
+**Technology Stack**:
+- Runtime: Bun/Node with tsx
+- CLI Framework: yargs (matches OpenCode)
+- Config: YAML + Zod validation
+- Output: chalk for colored terminal output
+
+**Commands Implemented**:
+
+| Command | Function |
+|---------|----------|
+| `otc init` | Creates `.ai/` folder with config, standards, policies templates |
+| `otc status` | Shows config validity, session counts, OpenCode connection status |
+| `otc doctor` | 11-point health check with remediation steps |
+| `otc guardrail scan [path]` | Secret detection with CI-friendly exit codes |
+| `otc guardrail list` | Lists 10 default patterns with confidence levels |
+| `otc guardrail explain <id>` | Pattern details, regex, examples, false-positive indicators |
+| `otc handoff` | Exports OpenCode session to `.ai/sessions/YYYY-MM-DD-slug/` |
+| `otc sessions list` | Lists session artifacts with filters |
+| `otc sessions show <id>` | Displays session intent, plan, blockers |
+| `otc sessions search <query>` | Full-text search across session artifacts |
+| `otc continue <id>` | Loads session context for continuation |
+
+**Code Review**: Implementation reviewed by code-review-specialist agent. Six issues identified and fixed:
+1. URL path construction bugs in OpenCode client
+2. Memory exhaustion risk (added 5MB file size limit)
+3. Cross-platform root detection
+4. Unhandled stat() errors
+5. Cryptic YAML parsing errors
+6. Unused imports
+
+### Consequences
+
+**Positive**:
+- Team can immediately use `otc guardrail scan` for secret detection
+- `otc init` standardizes `.ai/` folder setup across repos
+- `otc handoff` and `otc continue` enable structured Q001 experiments
+- `otc doctor` provides ongoing health monitoring for Q004
+- Concrete tool lowers barrier to team participation
+
+**Negative**:
+- Implementation effort before full validation complete
+- May need iteration based on Q001/Q004 feedback
+
+**Mitigations**:
+- Commands designed for minimal viable functionality
+- Session artifact format documented and versioned
+- CLI structure allows incremental enhancement
+
+### Success Criteria
+
+After implementation, team members can:
+1. ✅ Run `otc init` in any repo to set up team conventions
+2. ✅ Run `otc guardrail scan` to check code for secrets
+3. ✅ Run `otc handoff` to export sessions for Q001 experiments
+4. ✅ Run `otc doctor` to verify setup is correct
+5. ✅ Run `otc continue <id>` to resume a handed-off session
+
+---
+
 ## Pending Decisions
 
 The following decisions are deferred pending Phase 0 validation or team input:
@@ -347,5 +437,6 @@ The following decisions are deferred pending Phase 0 validation or team input:
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 0.2.0 | 2026-01-14 | Claude (Opus 4.5) | Added API churn contingency plan and fork criteria to D001 (post-audit) |
+| 0.2.0 | 2026-01-18 | Claude (Opus 4.5) | Added D007: `otc` CLI implementation decision |
+| 0.1.1 | 2026-01-14 | Claude (Opus 4.5) | Added API churn contingency plan and fork criteria to D001 (post-audit) |
 | 0.1.0 | 2026-01-14 | Claude (feasibility analysis) | Initial decisions from feasibility assessment |

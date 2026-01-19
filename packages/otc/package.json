@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@openteamcode/otc",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "description": "OpenTeamCode CLI - Team-native collaboration primitives for AI-assisted coding",
+  "scripts": {
+    "dev": "tsx ./src/index.ts",
+    "dev:bun": "bun run ./src/index.ts",
+    "build": "bun build ./src/index.ts --outdir=dist --target=bun",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "otc": "tsx ./src/index.ts"
+  },
+  "bin": {
+    "otc": "./src/index.ts"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "yaml": "^2.7.0",
+    "yargs": "^18.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/yargs": "^17.0.33",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}
